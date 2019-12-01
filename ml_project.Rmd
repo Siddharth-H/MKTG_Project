@@ -1,0 +1,146 @@
+---
+title: "MachineLearning"
+author: "Siddharth Hatkar"
+date: "11/18/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r, echo=TRUE}
+#install.packages("dataPreparation")
+#install.packages("corrplot")
+library("dataPreparation")
+library("mlbench")
+library("e1071")
+library("caret")
+library("ROCR")
+library("kernlab")
+library("corrplot")
+library("caret") #For Logistic Regression
+
+OJ <- read.csv(url("http://data.mishra.us/files/OJ.csv"))
+
+```
+
+## Removing irrelevant variables
+
+You can also embed plots, for example:
+```{r, echo=FALSE}
+constant_cols <- whichAreConstant(OJ)
+double_cols <- whichAreInDouble(OJ)
+bijections_cols <- whichAreBijection(OJ)
+
+```
+```{r, echo=FALSE}
+#Store 7 and Store are redundant variables. These two varaibles provide same information as the StoreID variable. When the store is 7, at that time, StoreID will be 7 and Store7 will be yes, also the value of store will be zero and when store is some other value, say 1, StoreID will be 1, Store7 will be No, and Store will be 1. Therefore, we can only keep StoreID and through this we can derive other information.
+#STORE is a bijection of STOREID
+
+#Similarly, we can also remove the ListPriceDiff and PriceDiff. These two can also be derived from the other variables. PriceDiff can be derived by subtracting SalePriceCH from SalePriceMM and similarly, ListPriceDiff can be derived by subtracting PriceCH from PriceMM.
+
+#Bool_OJ <- names(OJ) %in% c("Store7","STORE", "PriceDiff", "ListPriceDiff")
+#New_OJ <- OJ[!Bool_OJ]
+
+New_OJ <- OJ[, c(-18)]
+included_cols <- whichAreIncluded(New_OJ)
+```
+
+```{r, echo=FALSE}
+#Finding the attributes which need to be factored
+New_OJ <- New_OJ[, c(-6,-7,-14)]
+str(New_OJ)
+
+#factorizing the required attributes
+New_OJ$StoreID <- as.factor(OJ$StoreID)
+New_OJ$SpecialCH <- as.factor(OJ$SpecialCH)
+New_OJ$SpecialMM <- as.factor(OJ$SpecialMM)
+
+
+#F=c(2,4,5,7,8,9,10,11,12,13,15,16,17,18,19,20) # categorical variables are converted into factors
+#for(i in F) df[,i]=as.factor(df[,i])
+
+```
+
+```{r, echo=FALSE}
+
+
+Cor_data <- New_OJ[, c("PriceCH", "PriceMM", "LoyalCH", "SalePriceMM", "SalePriceCH", "PriceDiff", "PctDiscMM", "PctDiscCH", "ListPriceDiff")]
+cor_result <- cor(Cor_data)
+cor_result
+corrplot(cor_result, method="number")
+```
+```{r, echo=FALSE}
+#Removing attributes having high correlation
+#SalePriceCH
+#SalePriceMM
+#PriceDiff
+#ListPriceDiff
+
+New_OJ <- New_OJ[, c(-9, -10, -11, -14)]
+
+```
+
+```{r, echo=FALSE}
+split = 0.7
+set.seed(99894)
+
+train_index <- sample(1:nrow(New_OJ), split * nrow(New_OJ))
+test_index <- setdiff(1:nrow(New_OJ), train_index)
+
+OJ_train <- New_OJ[train_index,]
+OJ_test <- New_OJ[test_index,]
+
+#sapply(OJ_train, function(x) sum(is.na(x)))
+#sapply(OJ_train, function(x) length(unique(x)))
+
+
+```
+
+```{r, echo=FALSE}
+#head(OJ_train)
+#predictionModel <- glm(Purchase ~ ., data = OJ_train, family=binomial(link='logit'))
+#summary(predictionModel)$coefficients
+
+
+############################## FROM SVM
+X_train_unscaled <- New_OJ[train_index,-1]
+y_train <- New_OJ[train_index, 1]
+
+X_test_unscaled <- New_OJ[test_index, -1]
+y_test <- New_OJ[test_index, 1]
+
+
+# DATA IS STANDARDIZED AND ENCODED (see see https://cran.r-project.org/web/packages/dataPreparation/vignettes/train_test_prep.html)
+# Standardize continuous variables...
+scales <- build_scales(dataSet = X_train_unscaled, cols = "auto", verbose = FALSE) 
+
+X_train <- fastScale(dataSet = X_train_unscaled, scales = scales, verbose = FALSE)
+X_test <- fastScale(dataSet = X_test_unscaled, scales = scales, verbose = FALSE)
+
+# Encode categorical variables...
+encoding <- build_encoding(dataSet = X_train, cols = "auto", verbose = FALSE) 
+X_train <- one_hot_encoder(dataSet = X_train, encoding = encoding, drop = TRUE, verbose = FALSE)
+X_test <- one_hot_encoder(dataSet = X_test, encoding = encoding, drop = TRUE, verbose = FALSE)
+
+# Create one data frame using both Outcome and Predictor Variables
+
+train_Data <- cbind(y_train,X_train)
+
+
+##############################END SVM
+
+```
+
+```{r, echo=FALSE}
+
+```
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+, 
