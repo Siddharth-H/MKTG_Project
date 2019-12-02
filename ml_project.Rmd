@@ -25,7 +25,7 @@ library("caret")
 library("ROCR")
 library("kernlab")
 library("corrplot")
-library("caret") #For Logistic Regression
+library("caret")
 
 OJ <- read.csv(url("http://data.mishra.us/files/OJ.csv"))
 
@@ -63,16 +63,13 @@ str(New_OJ)
 New_OJ$StoreID <- as.factor(New_OJ$StoreID)
 New_OJ$Purchase <- ifelse(New_OJ$Purchase == "CH", 1, 0)
 
-#F=c(2,4,5,7,8,9,10,11,12,13,15,16,17,18,19,20) # categorical variables are converted into factors
-#for(i in F) df[,i]=as.factor(df[,i])
-# ds <- ds[, -c(5, 11, 12, 14, 15, 16, 17, 18)]
 str(New_OJ)
 
 ```
 
 ```{r, echo=FALSE}
 
-
+# Correlation 
 Cor_data <- New_OJ[, c("PriceCH", "PriceMM", "LoyalCH", "SalePriceMM", "SalePriceCH", "PriceDiff", "PctDiscMM", "PctDiscCH", "ListPriceDiff")]
 cor_result <- cor(Cor_data)
 cor_result
@@ -89,15 +86,9 @@ New_OJ <- New_OJ[, c(-9, -10, -11, -14)]
 ```
 
 ```{r, echo=FALSE}
-###############################Logistic Regression############
-# split test, validation and train
-#set.seed(19234)
-New_OJ <- New_OJ[sample(1:nrow(New_OJ)), ]
-#train <- New_OJ[1:500,]
-#val <- New_OJ[501:803,]
-#test <- New_OJ[804:1070,]
+#LOGISTIC REGRESSION
 
-split = 0.7
+split = 0.8
 set.seed(99894)
 
 train_index <- sample(1:nrow(New_OJ), split * nrow(New_OJ))
@@ -106,61 +97,69 @@ test_index <- setdiff(1:nrow(New_OJ), train_index)
 OJ_train <- New_OJ[train_index,]
 OJ_test <- New_OJ[test_index,]
 
-# simple algo
 glm1 <- glm(family = "binomial", Purchase ~., data = OJ_train)
 
-pred1 <- predict(glm1, OJ_test, type = "response")
-result1 <- ifelse(pred1 > 0.50, 1, 0)
+prediction <- predict(glm1, OJ_test, type = "response")
+result <- ifelse(prediction > 0.50, 1, 0)
 
-table(result1, OJ_test$Purchase)
-
-#############################DONE LOGISTIC REG##########################
-#reg.summary <- summary(regsubsets(Purchase ~ ., OJ_train, nvmax = 9))
-
-#print(reg.summary)
-
-
-
-#glm2 <- glm(family = "binomial", Purchase ~ LoyalCH + PriceDiff + StoreID2, data = train)
-
-#print(summary(glm2))
-
-#pred2 <- predict(glm2, type = "response", val[,-1])
-#result2 <- ifelse(pred2 > 0.5, 1, 0)
-
-#table(result2, val$Purchase) 
-
+conf <- table(result, OJ_test$Purchase)
+conf
+accuracy <- (conf[1] + conf[4])/(sum(conf))
+accuracy
 
 ```
 
 ```{r, echo=FALSE}
-split = 0.7
-set.seed(99894)
+#SVM
 
-train_index <- sample(1:nrow(New_OJ), split * nrow(New_OJ))
-test_index <- setdiff(1:nrow(New_OJ), train_index)
-
-OJ_train <- New_OJ[train_index,]
-OJ_test <- New_OJ[test_index,]
-
-#sapply(OJ_train, function(x) sum(is.na(x)))
-#sapply(OJ_train, function(x) length(unique(x)))
+New_OJ2 <- OJ %>% 
+mutate(Purchase = recode_factor(Purchase, "MM" = 'Y' , "CH" = 'N'),
+       StoreID = factor(StoreID),
+       SpecialCH = factor(SpecialCH),
+       SpecialMM = factor(SpecialMM),
+       Purchase = factor(Purchase),
+       )
 
 
-```
+# IDENTIFYING VARIABLES THAT ARE EITHER CONSTANTS, DOUBLES or BIJECTIONS
+b_vars <- whichAreBijection(New_OJ2)
+c_vars <- whichAreConstant(New_OJ2)
+d_vars <- whichAreInDouble(New_OJ2)
+b_vars
+c_vars
+d_vars
 
-```{r, echo=FALSE}
-#head(OJ_train)
-#predictionModel <- glm(Purchase ~ ., data = OJ_train, family=binomial(link='logit'))
-#summary(predictionModel)$coefficients
 
 
-############################## FROM SVM
-X_train_unscaled <- New_OJ[train_index,-1]
-y_train <- New_OJ[train_index, 1]
+# REMOVING VARIABLES
 
-X_test_unscaled <- New_OJ[test_index, -1]
-y_test <- New_OJ[test_index, 1]
+New_OJ2 <- New_OJ2[,c(-18)]
+
+# Removing Included Variables
+i_vars <- whichAreIncluded(New_OJ2)
+i_vars
+New_OJ2 <- New_OJ2[,c(-14,-7,-6)]
+
+#Finding Correlation Matrix using numrical attributes
+cor_data <- New_OJ2[, c(-1,-2,-3,-6,-7)]
+corr_mat <- cor(cor_data)
+corrplot(corr_mat, method = "number")
+
+#Removing the highly correlated attributes
+
+New_OJ2 <- New_OJ2[,c(-14,-11,-10,-9)]
+
+#Model1 & Model2
+
+New_OJ2 <- New_OJ2[,c(-2)]
+
+#Code from SVM class
+
+X_train_unscaled <- New_OJ2[train_index,-1]
+y_train <- New_OJ2[train_index, 1]
+
+X_test_unscaled <- New_OJ2[test_index, -1]
+y_test <- New_OJ2[test_index, 1]
 
 
 # DATA IS STANDARDIZED AND ENCODED (see see https://cran.r-project.org/web/packages/dataPreparation/vignettes/train_test_prep.html)
@@ -179,13 +178,62 @@ X_test <- one_hot_encoder(dataSet = X_test, encoding = encoding, drop = TRUE, ve
 
 train_Data <- cbind(y_train,X_train)
 
+#########
+fitControl <- trainControl(## 4-fold CV
+  method = "repeatedcv",
+  number = 4,
+  ## repeated two times
+  repeats = 2,
+  summaryFunction=twoClassSummary,
+  classProbs = TRUE)
 
-##############################END SVM
+grid <- expand.grid(sigma = c(.01,.05),
+                    C = c(.05,.75,1,1.5,2))
+
+# FIND OPTIMAL TUNING PARAMETERS (C and SIGMA)
+
+svmFit1 <- train(Purchase ~ ., data = train_Data, 
+                 method='svmRadial',  
+                 trControl = fitControl,
+                 metric = "ROC",
+                 verbose = FALSE,
+                 probability = TRUE,
+                 tuneGrid = grid
+                 
+)
+#final values of hyperparameters; sigma = 0.01, C = 2
+
+##Create a plot of ROC with with different values of C and gamma
+
+
+svmFit1
+plot(svmFit1)
+
+## Predict
+svmPred <- predict(svmFit1, newdata = X_test, probability = TRUE)
+
+confusionMatrix(data = svmPred, as.factor(y_test$Purchase))
+
+#####################
+#LinearSVM 
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+svmFitL <- train(Purchase ~ ., data = train_Data, 
+                 method='svmLinear',  
+                 trControl = trctrl,
+                 preProcess = c("center", "scale"),
+                 tuneLength = 10)
+                 
+
+
+svmFitL
+plot(svmFitL)
+
+## Predict
+svmPredL <- predict(svmFitL, newdata = X_test, probability = TRUE)
+
+confusionMatrix(data = svmPredL, as.factor(y_test$Purchase))
+
 
 ```
 
 ```{r, echo=FALSE}
-
-```
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-, 
