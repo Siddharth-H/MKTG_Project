@@ -51,6 +51,7 @@ bijections_cols <- whichAreBijection(OJ)
 
 New_OJ <- OJ[, c(-18)]
 included_cols <- whichAreIncluded(New_OJ)
+
 ```
 
 ```{r, echo=FALSE}
@@ -59,13 +60,13 @@ New_OJ <- New_OJ[, c(-6,-7,-14)]
 str(New_OJ)
 
 #factorizing the required attributes
-New_OJ$StoreID <- as.factor(OJ$StoreID)
-New_OJ$SpecialCH <- as.factor(OJ$SpecialCH)
-New_OJ$SpecialMM <- as.factor(OJ$SpecialMM)
-
+New_OJ$StoreID <- as.factor(New_OJ$StoreID)
+New_OJ$Purchase <- ifelse(New_OJ$Purchase == "CH", 1, 0)
 
 #F=c(2,4,5,7,8,9,10,11,12,13,15,16,17,18,19,20) # categorical variables are converted into factors
 #for(i in F) df[,i]=as.factor(df[,i])
+# ds <- ds[, -c(5, 11, 12, 14, 15, 16, 17, 18)]
+str(New_OJ)
 
 ```
 
@@ -85,6 +86,50 @@ corrplot(cor_result, method="number")
 #ListPriceDiff
 
 New_OJ <- New_OJ[, c(-9, -10, -11, -14)]
+```
+
+```{r, echo=FALSE}
+###############################Logistic Regression############
+# split test, validation and train
+#set.seed(19234)
+New_OJ <- New_OJ[sample(1:nrow(New_OJ)), ]
+#train <- New_OJ[1:500,]
+#val <- New_OJ[501:803,]
+#test <- New_OJ[804:1070,]
+
+split = 0.7
+set.seed(99894)
+
+train_index <- sample(1:nrow(New_OJ), split * nrow(New_OJ))
+test_index <- setdiff(1:nrow(New_OJ), train_index)
+
+OJ_train <- New_OJ[train_index,]
+OJ_test <- New_OJ[test_index,]
+
+# simple algo
+glm1 <- glm(family = "binomial", Purchase ~., data = OJ_train)
+
+pred1 <- predict(glm1, OJ_test, type = "response")
+result1 <- ifelse(pred1 > 0.50, 1, 0)
+
+table(result1, OJ_test$Purchase)
+
+#############################DONE LOGISTIC REG##########################
+#reg.summary <- summary(regsubsets(Purchase ~ ., OJ_train, nvmax = 9))
+
+#print(reg.summary)
+
+
+
+#glm2 <- glm(family = "binomial", Purchase ~ LoyalCH + PriceDiff + StoreID2, data = train)
+
+#print(summary(glm2))
+
+#pred2 <- predict(glm2, type = "response", val[,-1])
+#result2 <- ifelse(pred2 > 0.5, 1, 0)
+
+#table(result2, val$Purchase) 
+
 
 ```
 
