@@ -34,13 +34,13 @@ OJ <- read.csv(url("http://data.mishra.us/files/OJ.csv"))
 ## Removing irrelevant variables
 
 You can also embed plots, for example:
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 constant_cols <- whichAreConstant(OJ)
 double_cols <- whichAreInDouble(OJ)
 bijections_cols <- whichAreBijection(OJ)
 
 ```
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 #Store 7 and Store are redundant variables. These two varaibles provide same information as the StoreID variable. When the store is 7, at that time, StoreID will be 7 and Store7 will be yes, also the value of store will be zero and when store is some other value, say 1, StoreID will be 1, Store7 will be No, and Store will be 1. Therefore, we can only keep StoreID and through this we can derive other information.
 #STORE is a bijection of STOREID
 
@@ -54,7 +54,7 @@ included_cols <- whichAreIncluded(New_OJ)
 
 ```
 
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 #Finding the attributes which need to be factored
 New_OJ <- New_OJ[, c(-6,-7,-14)]
 str(New_OJ)
@@ -67,7 +67,7 @@ str(New_OJ)
 
 ```
 
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 
 # Correlation 
 Cor_data <- New_OJ[, c("PriceCH", "PriceMM", "LoyalCH", "SalePriceMM", "SalePriceCH", "PriceDiff", "PctDiscMM", "PctDiscCH", "ListPriceDiff")]
@@ -75,7 +75,7 @@ cor_result <- cor(Cor_data)
 cor_result
 corrplot(cor_result, method="number")
 ```
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 #Removing attributes having high correlation
 #SalePriceCH
 #SalePriceMM
@@ -85,7 +85,7 @@ corrplot(cor_result, method="number")
 New_OJ <- New_OJ[, c(-9, -10, -11, -14)]
 ```
 
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 #LOGISTIC REGRESSION
 
 split = 0.8
@@ -109,7 +109,7 @@ accuracy
 
 ```
 
-```{r, echo=FALSE}
+```{r, echo=TRUE}
 #SVM
 
 New_OJ2 <- OJ %>% 
@@ -177,8 +177,11 @@ X_test <- one_hot_encoder(dataSet = X_test, encoding = encoding, drop = TRUE, ve
 # Create one data frame using both Outcome and Predictor Variables
 
 train_Data <- cbind(y_train,X_train)
+```
 
-#########
+
+```{r, echo=TRUE}
+
 fitControl <- trainControl(## 4-fold CV
   method = "repeatedcv",
   number = 4,
@@ -213,8 +216,10 @@ plot(svmFit1)
 svmPred <- predict(svmFit1, newdata = X_test, probability = TRUE)
 
 confusionMatrix(data = svmPred, as.factor(y_test$Purchase))
+```
 
-#####################
+
+```{r, echo=TRUE}
 #LinearSVM 
 trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
 svmFitL <- train(Purchase ~ ., data = train_Data, 
@@ -226,14 +231,10 @@ svmFitL <- train(Purchase ~ ., data = train_Data,
 
 
 svmFitL
-plot(svmFitL)
 
 ## Predict
 svmPredL <- predict(svmFitL, newdata = X_test, probability = TRUE)
 
 confusionMatrix(data = svmPredL, as.factor(y_test$Purchase))
-
-
 ```
 
-```{r, echo=FALSE}
